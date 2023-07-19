@@ -2,42 +2,24 @@ import React, {useState, useEffect} from 'react'
 import axios from 'axios'
 import * as Yup from 'yup'
 
+import { countryCodes } from '../Data'
+import { defaultForm } from '../Data'
+import { roles } from '../Data'
+
 export default function Form () {
-    let timer = 1000
-    const phoneRegExp = /^((\\+[1-9]{1,4}[ \\-]*)|(\\([0-9]{2,3}\\)[ \\-]*)|([0-9]{2,4})[ \\-]*)*?[0-9]{3,4}?[ \\-]*[0-9]{3,4}?$/
-
-    const defaultForm = {
-        firstName: '',
-        lastName: '',
-        email: '',
-        password: '',
-        tel: '',
-        role: '',
-        terms: ''
-    }
-
-    const roles = [
-        'Professor',
-        'Teacher\'s Assistant',
-        'Supplemental Instructor',
-        'Student',
-    ]
 
     const [formState, setFormState] = useState(defaultForm)
-    const [database, setDatabase] = useState({})
+    const [database, setDatabase] = useState([{}])
     const [users, setUsers] = useState([])
     const [errors, setErrors] = useState({
         firstName: '',
         lastName: '',
         email: '',
         password: '',
+        tel: '',
         terms: ''
     })
-    const onChange = evt => {
-        const name = evt.target.name
-        const value = evt.target.value
-        setFormState({...formState, [name]: value})
-    }
+
     const checkTerms = () => {
         if (formState.terms === 'on') {setFormState({...formState, terms: true})}
         else if (formState.terms === '') {setFormState({...formState, terms: false})}
@@ -57,21 +39,24 @@ export default function Form () {
         password: Yup
             .string()
             .required('Password is required')
-            .min(8, 'Password must between 8 and 32 characters long.')
-            .max(32, 'Password must be between 8 and 32 characters long.'),
+            .matches(
+                /^.*(?=.{8,})((?=.*[!@#$%^&*()\-_=+{};:,<.>]){1})(?=.*\d)((?=.*[a-z]){1})((?=.*[A-Z]){1}).*$/,
+                "Password must contain at least 8 characters, one uppercase, one number and one special case character"
+              ),
         tel: Yup
             .string()
-            .matches(phoneRegExp,'Must be a valid telephone number.')
+            .matches(/^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/im, 'Must be valid phone number.')
             .required('Must include telephone number.')
-
     })
 
     const setButtonDisabled = () => {
-        return !formState.firstName || !formState.lastName || !formState.email || !formState.password
+        if(formState.tel.length >= 10) return !formState.firstName || !formState.lastName || !formState.email || !formState.password
+        else return true
     }
 
     const formSubmit = e => {
         e.preventDefault()
+        setDatabase(database.concat({Name: `${formState.firstName} ${formState.lastName}`, Email: formState.email, Code: formState.code, Phone: formState.tel, Role: formState.role, Image: formState.myImage}))
         console.log('Submitted!')
         axios
             .post(`https://reqres.in/api/users`, formState)
@@ -83,17 +68,6 @@ export default function Form () {
                 console.log(err.response)
             })
         setFormState(defaultForm)
-        setDatabase({...database, formState})
-        console.log(database)
-    }
-
-    const handleKeyPress = () => {
-        window.clearTimeout(timer)
-    }
-
-    const handleKeyUp = (e) => {
-        window.clearTimeout(timer)
-        timer = window.setTimeout(handleChange(e), timer)
     }
     
     useEffect(() => {
@@ -107,35 +81,33 @@ export default function Form () {
             })
     }, [formState])
     
-    const handleChange = event => {
-            Yup
-                .reach(formSchema, event.target.name)
-                .validate(event.target.value)
+    const onChange = evt => {
+        const name = evt.target.name
+        const value = evt.target.value
+        Yup
+                .reach(formSchema, name)
+                .validate(value)
                 .then(() => {
                     setErrors({
-                        ...errors, [event.target.name]: ''
+                        ...errors, [name]: ''
                     })
                 })
                 .catch(err => {
                     setErrors({
-                        ...errors, [event.target.name]: err.errors[0]
+                        ...errors, [name]: err.errors[0]
                     })
                 })
-            setFormState({
-                ...formState, [event.target.name]: event.target.value
-            })
+        setFormState({
+            ...formState, [name]: value
+        })
     }
-
-    checkTerms()
 
     return (
         <div>
-            <form onSubmit={formSubmit}>
+            <form className='container' onSubmit={formSubmit}>
                 <label htmlFor='firstName'>
                     <input 
                         id='firstName'
-                        onKeyDown={handleKeyPress}
-                        onKeyUp={handleKeyUp}
                         name="firstName"
                         type="text"
                         value={formState.firstName}
@@ -147,8 +119,6 @@ export default function Form () {
                 <label htmlFor='lastName'>
                     <input
                         id='lastName'
-                        onKeyDown={handleKeyPress}
-                        onKeyUp={handleKeyUp}
                         name='lastName'
                         type='text'
                         value={formState.lastName}
@@ -160,8 +130,6 @@ export default function Form () {
                 <label htmlFor='email'>
                     <input
                         id='email'
-                        onKeyDown={handleKeyPress}
-                        onKeyUp={handleKeyUp}
                         name='email'
                         type='email'
                         value={formState.email}
@@ -173,8 +141,6 @@ export default function Form () {
                 <label htmlFor='password'>
                     <input
                         id='password'
-                        onKeyDown={handleKeyPress}
-                        onKeyUp={handleKeyUp}
                         name='password'
                         type='password'
                         value={formState.password}
@@ -183,17 +149,21 @@ export default function Form () {
                     />
                 </label>
                 <label htmlFor='tel'>
+                    <select id='code'
+                        onChange={event => setFormState({...formState, code: event.target.value})}
+                        defaultValue={formState.code}>
+                            <option> --- Select Country --- </option>
+                            {countryCodes.map((cntry, idx) =>
+                                <option key={idx} value={cntry.countryCodes}>{cntry.country} +{cntry.countryCodes}</option>)}
+                        </select>
                     <input
                         id='tel'
-                        onKeyDown={handleKeyPress}
-                        onKeyUp={handleKeyUp}
                         name='tel'
                         type='tel'
                         value={formState.tel}
                         onChange={onChange}
                         placeholder='Telephone Number'
                     />
-                    <small>Format: 123-456-7890</small>
                 </label>
                 {errors.password.length > 0 && <p className='error'>{errors.password}</p>}
                 <label htmlFor='role'>
@@ -205,6 +175,14 @@ export default function Form () {
                                 <option key = {idx} value = {role}>{role}</option>
                             )}
                     </select>
+                </label>
+                <label htmlFor='pfp'>
+                <input 
+                    type="file" 
+                    name="myImage" 
+                    accept="image/*" 
+                    onChange={evt => setFormState({...formState, myImage: evt.target.value})}
+                />
                 </label>
                 <label htmlFor='tos'>
                     <input
@@ -221,15 +199,17 @@ export default function Form () {
                     disabled={setButtonDisabled()}
                 />
             </form>
-            <pre>{JSON.stringify(users, null, 2)}</pre>
-            {/* {database.map((entry) => {
-                <div className='container'>
-                    <h2>Name: {entry.firstName}</h2>
-                    <p>Email: {entry.email}</p>
-                    <p>Phone Number: {entry.tel}</p>
-                    <p>Role: {entry.role}</p>
+            {database.map((entry, idx) => 
+                entry.Name && <div className='container' key={idx}>
+                    <h2>Name: {entry.Name}</h2>
+                    <p>Email: {entry.Email}</p>
+                    <p>Phone Number: {`+${entry.Code} ${entry.Phone.slice(0,3)}-${entry.Phone.slice(3,6)}-${entry.Phone.slice(6)}`}</p>
+                    <p>Role: {entry.Role}</p>
+                    {entry.myImage && <img src={`${entry.myImage}`}></img>}
+                    <button key={idx}>Remove</button>
                 </div>
-            })} */}
+            )}
+            <pre>{JSON.stringify(users, null, 2)}</pre>
         </div>
     )
 }

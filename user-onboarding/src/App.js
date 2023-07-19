@@ -3,8 +3,8 @@ import Form from './components/Form'
 
 function App() {
   return (
-    <div className="container">
-      <h1>Data Validation App</h1>
+    <div>
+      <h1 className="container">Data Validation App</h1>
       <Form />
     </div>
   );
