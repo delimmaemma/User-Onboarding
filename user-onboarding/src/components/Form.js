@@ -196,6 +196,8 @@ export default function Form () {
                 </label>
                 <input
                     type='submit'
+                    id='submit'
+                    name='submit'
                     disabled={setButtonDisabled()}
                 />
             </form>
